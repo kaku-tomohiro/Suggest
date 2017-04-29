@@ -4,8 +4,10 @@ import android.app.SearchManager;
 import android.content.Intent;
 import android.os.Handler;
 import android.os.Message;
+import android.os.PersistableBundle;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.util.Xml;
 import android.view.View;
 import android.widget.AdapterView;
@@ -26,10 +28,20 @@ public class MainActivity extends AppCompatActivity {
 
     private EditText inputText;
     private ArrayAdapter<String> resultAdapter;
+    private final static String KEY_NAME = "MainActivity.result";
+    private ArrayList<String> result = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        //android.os.Debug.waitForDebugger();
         super.onCreate(savedInstanceState);
+
+        if (savedInstanceState != null) {
+            ArrayList<String> result = savedInstanceState.getStringArrayList(KEY_NAME);
+            if(result != null)
+                this.result = result;
+        }
+
         setContentView(R.layout.activity_main);
 
         inputText = (EditText)findViewById(R.id.input_text);
@@ -55,6 +67,30 @@ public class MainActivity extends AppCompatActivity {
                 startActivity(intent);
             }
         });
+
+
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        ListView resultList = (ListView)findViewById(R.id.result_list);
+        resultList.setAdapter(resultAdapter);
+        resultAdapter.addAll(result);
+        resultList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int pos, long id) {
+                String text = (String)parent.getItemAtPosition(pos);
+                Intent intent = new Intent(Intent.ACTION_WEB_SEARCH);
+                intent.putExtra(SearchManager.QUERY, text);
+                startActivity(intent);
+            }
+        });
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+          outState.putStringArrayList(KEY_NAME, this.result);
     }
 
     private final static int MSG_RESULT = 1111;
@@ -77,14 +113,13 @@ public class MainActivity extends AppCompatActivity {
 
     private class SuggestThread extends Thread {
         private String queryText;
-
         SuggestThread(String queryText) {
             this.queryText = queryText;
         }
-
         @Override
         public void run() {
-            ArrayList<String> result = new ArrayList<>();
+            if(result != null)
+                result.clear();
             HttpURLConnection conn = null;
             String error = null;
             try {
